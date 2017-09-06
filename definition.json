@@ -1,0 +1,30 @@
+[
+  {
+    "id":"UserService",
+    "type":"pkgName + typeName",
+    "fields":[
+      {
+        "name":"field name",
+        "value":""
+      },
+      {
+        "name":"field name 1",
+        "ref":"依赖引用id"
+      },
+      {
+        "name":"fields name 2",
+        "list":[
+          {
+            "ref/value":""
+          }
+        ]
+      },
+      {
+        "name":"fields name 3",
+        "map":{
+          "key":{"value/ref":""}
+        }
+      }
+    ]
+  }
+]
