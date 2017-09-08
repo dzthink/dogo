@@ -164,7 +164,7 @@ func(f *Factory) RegisDefinition(id string, def *instanceDefinition) {
 func(f *Factory) parseStructTag(t reflect.Type, insDef *instanceDefinition) {
 	for index := 0; index < t.NumField(); index++ {
 		tag := t.Field(index).Tag
-		if tagName, ok := tag.Lookup("Autowired"); ok {
+		if tagName := tag.Get("Autowired"); !strings.EqualFold(tagName, "") {
 			insDef.dependsOn[t.Field(index).Name] = &dependDefinition{
 				isRef : true,
 				data : tagName,
@@ -172,7 +172,7 @@ func(f *Factory) parseStructTag(t reflect.Type, insDef *instanceDefinition) {
 			continue
 		}
 
-		if tagName, ok := tag.Lookup("Value"); ok {
+		if tagName := tag.Get("Value"); !strings.EqualFold(tagName, "") {
 			insDef.dependsOn[t.Field(index).Name] = &dependDefinition{
 				isRef : false,
 				data : tagName,
