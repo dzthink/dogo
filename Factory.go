@@ -129,7 +129,7 @@ func(c *Factory)injectField(fieldValue reflect.Value, depend *dependDefinition) 
 		if err != nil {
 			return err
 		}
-		if fieldValue.Kind() == reflect.Ptr {
+		if fieldValue.Kind() == reflect.Ptr || fieldValue.Kind() == reflect.Interface {
 			fieldValue.Set(reflect.ValueOf(dependIns))
 		} else {
 			fieldValue.Set(reflect.ValueOf(dependIns).Elem())
