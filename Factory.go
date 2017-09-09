@@ -43,13 +43,15 @@ type Factory struct {
 	mutex *sync.Mutex
 }
 
-func NewFactory(typeMap map[string]reflect.Type) *Factory {
-	return &Factory{
+func NewFactory(typeMap map[string]interface{}) *Factory {
+	fac := &Factory{
 		typeMap : make(map[string]reflect.Type),
 		dependencies : make(map[string]*instanceDefinition),
 		instances : make(map[string]interface{}),
 		mutex : new(sync.Mutex),
 	}
+	//todo 处理typemap
+	return fac
 }
 
 
@@ -142,7 +144,7 @@ func(c *Factory)injectField(fieldValue reflect.Value, depend *dependDefinition) 
 	return nil
 }
 
-func(f *Factory) RegisType(t interface{}, name, scope string)   {
+func(f *Factory) regisType(t interface{}, name, scope string)   {
 	tType := reflect.TypeOf(t)
 	if tType.Kind() != reflect.Struct {
 		panic("Only struct can be registerd")
