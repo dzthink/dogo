@@ -43,7 +43,7 @@ type Factory struct {
 	mutex *sync.Mutex
 }
 
-func NewFactory() *Factory {
+func NewFactory(typeMap map[string]reflect.Type) *Factory {
 	return &Factory{
 		typeMap : make(map[string]reflect.Type),
 		dependencies : make(map[string]*instanceDefinition),

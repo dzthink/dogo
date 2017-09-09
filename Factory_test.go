@@ -29,7 +29,7 @@ func(hp *HttpProtocal)Post() {
 }
 
 func TestFactory_RegisType(t *testing.T) {
-	fac := NewFactory()
+	fac := NewFactory(nil)
 	fac.RegisType(typeRegisStruct{}, "dogo/typeRegisStruct", SCOPE_STATELESS)
 	if _, ok := fac.typeMap["dogo/typeRegisStruct"]; !ok {
 		t.Error("type register fail")
@@ -37,7 +37,7 @@ func TestFactory_RegisType(t *testing.T) {
 }
 
 func TestFactory_Make(t *testing.T) {
-	fac := NewFactory()
+	fac := NewFactory(nil)
 	fac.RegisType(typeRegisStruct{}, "dogo/typeRegisStruct", SCOPE_STATELESS)
 	fac.RegisType(Authrization{}, "dogo/authrization", SCOPE_STATELESS)
 	fac.RegisType(HttpProtocal{}, "dogo/protocal", SCOPE_STATELESS)

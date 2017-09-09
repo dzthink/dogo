@@ -20,13 +20,35 @@ func NewConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	var conf map[string]*json.RawMessage
-	err = json.Unmarshal(dat, conf)
+	err = json.Unmarshal(dat, &conf)
 	if err != nil {
 		return nil, err
 	}
-	return &Config{
+
+	c := &Config{
 		conf : conf,
-	}, nil
+	}
+	c.imports()
+	return c, nil
+}
+
+func(c *Config)imports() {
+	if importRaw, ok := c.conf["@imports"]; ok {
+		var imports map[string]string
+		err := json.Unmarshal(*importRaw, &imports)
+		if err == nil {
+			for k, importPath := range imports {
+				dat, err := ioutil.ReadFile(importPath)
+				if err != nil {
+					continue
+				}
+				childConfRaw := json.RawMessage(dat)
+				c.conf[k] = &childConfRaw
+			}
+		}
+		delete(c.conf, "@imports")
+	}
+
 }
 
 func(c *Config)Child(key string) (*Config, error) {
