@@ -1,6 +1,5 @@
 package dogo
 
-import "reflect"
 
 type Dogo struct {
 	Factory *Factory
@@ -8,7 +7,7 @@ type Dogo struct {
 	log Log
 }
 
-func NewDogo(path string, typeMap map[string]reflect.Type) *Dogo {
+func NewDogo(path string, typeMap map[string]interface{}) *Dogo {
 	conf, err := NewConfig(path)
 	if err != nil {
 		panic("config file parse fail")

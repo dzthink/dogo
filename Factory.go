@@ -50,7 +50,9 @@ func NewFactory(typeMap map[string]interface{}) *Factory {
 		instances : make(map[string]interface{}),
 		mutex : new(sync.Mutex),
 	}
-	//todo 处理typemap
+	for name, i := range typeMap {
+		fac.regisType(i, name)
+	}
 	return fac
 }
 
@@ -144,7 +146,7 @@ func(c *Factory)injectField(fieldValue reflect.Value, depend *dependDefinition) 
 	return nil
 }
 
-func(f *Factory) regisType(t interface{}, name, scope string)   {
+func(f *Factory) regisType(t interface{}, name string)   {
 	tType := reflect.TypeOf(t)
 	if tType.Kind() != reflect.Struct {
 		panic("Only struct can be registerd")
@@ -154,7 +156,7 @@ func(f *Factory) regisType(t interface{}, name, scope string)   {
 	}
 	f.typeMap[name] = tType
 
-	insDef := NewInstanceDefinition(scope, tType)
+	insDef := NewInstanceDefinition(SCOPE_STATELESS, tType)
 	f.parseStructTag(tType, insDef)
 	f.RegisDefinition(name, insDef)
 }
@@ -166,7 +168,7 @@ func(f *Factory) RegisDefinition(id string, def *instanceDefinition) {
 func(f *Factory) parseStructTag(t reflect.Type, insDef *instanceDefinition) {
 	for index := 0; index < t.NumField(); index++ {
 		tag := t.Field(index).Tag
-		if tagName := tag.Get("Autowired"); !strings.EqualFold(tagName, "") {
+		if tagName := tag.Get("Ref"); !strings.EqualFold(tagName, "") {
 			insDef.dependsOn[t.Field(index).Name] = &dependDefinition{
 				isRef : true,
 				data : tagName,
