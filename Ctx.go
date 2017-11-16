@@ -3,6 +3,7 @@ package dogo
 import (
 	"reflect"
 	"sync"
+	"strings"
 )
 
 const (
@@ -31,25 +32,26 @@ type Ctx struct {
 	mutex *sync.Mutex
 }
 
+func NewCtx() *Ctx {
+	return &Ctx{
+		typeInstance:make(map[reflect.Type]interface{}),
+		idInstance:make(map[string]interface{}),
+		idBlueprint:make(map[string]*Blueprint),
+		typeBlueprint:make(map[reflect.Type]*Blueprint),
+		types:make(map[string]reflect.Type),
+		mutex:new(sync.Mutex),
+	}
+}
+
 func(ctx *Ctx)GetInstanceWithId(id string) (interface{}) {
 	var(
 		ins interface{}
-		bp *Blueprint
 		exist bool
 	)
 	if ins, exist = ctx.idInstance[id];!exist {
 		defer ctx.mutex.Unlock()
 		ctx.mutex.Lock()
-		if ins, exist = ctx.idInstance[id]; exist {
-			return ins
-		}
-		if bp, exist= ctx.idBlueprint[id]; !exist {
-			return nil
-		}
-		ins = ctx.buildInstance(bp)
-
-		ctx.idInstance[id] = ins
-		ctx.typeInstance[bp.Type] = ins
+		ctx.buildInstanceWithId(id, true)
 	}
 	return ins
 }
@@ -57,64 +59,73 @@ func(ctx *Ctx)GetInstanceWithId(id string) (interface{}) {
 func(ctx *Ctx)GetInstanceWithType(t reflect.Type)(interface{}) {
 	var(
 		ins interface{}
-		bp *Blueprint
 		exist bool
 	)
 	if ins, exist = ctx.typeInstance[t];!exist {
 		defer ctx.mutex.Unlock()
 		ctx.mutex.Lock()
-		if ins, exist = ctx.typeInstance[t]; exist {
-			return ins
-		}
-		if bp, exist= ctx.typeBlueprint[t]; !exist {
-			bp = &Blueprint{
-				Type : t,
-				TypeStr : "",
-				Fields:make(map[string]*BluePrintField),
-			}
-		}
-		ins = ctx.buildInstance(bp)
-
-		ctx.typeInstance[bp.Type] = ins
+		ctx.buildInstanceWithType(t, true)
 	}
 	return ins
 }
 
 func(ctx *Ctx)NewInstanceWithId(id string)(interface{}) {
-	var(
-		bp *Blueprint
-		exist bool
-	)
 	defer ctx.mutex.Unlock()
 	ctx.mutex.Lock()
-	if bp, exist= ctx.idBlueprint[id]; !exist {
-		return nil
-	}
-	return ctx.buildInstance(bp)
+	return ctx.buildInstanceWithId(id, false)
 }
 
 func(ctx *Ctx)NewInstanceWithType(t reflect.Type)(interface{}) {
-	var(
-		bp *Blueprint
-		exist bool
-	)
+
 	defer ctx.mutex.Unlock()
 	ctx.mutex.Lock()
 
-	if bp, exist= ctx.typeBlueprint[t]; !exist {
-		bp = &Blueprint{
-			Type : t,
-			TypeStr : "",
-			Fields:make(map[string]*BluePrintField),
-		}
-	}
-
-	return ctx.buildInstance(bp)
-
+	return ctx.buildInstanceWithType(t, false)
 }
 
 func(ctx *Ctx)mergeBlueprintField(t reflect.Type, fields map[string]*BluePrintField) {
+	for index := 0; index < t.NumField(); index++ {
+		fieldStruct := t.Field(index)
+		if _, ok := fields[fieldStruct.Name];ok {
+			continue
+		}
+		tag := t.Field(index).Tag
+		if tagValue :=tag.Get("Ref");!strings.EqualFold(tagValue, "") {
+			fields[fieldStruct.Name] = &BluePrintField{
+				Name : fieldStruct.Name,
+				ValueType : ValueTypeRef,
+				Value : tagValue,
+			}
+			continue
+		}
 
+		if tagValue :=tag.Get("Value");!strings.EqualFold(tagValue, "") {
+			fields[fieldStruct.Name] = &BluePrintField{
+				Name : fieldStruct.Name,
+				ValueType : ValueTypeConst,
+				Value : tagValue,
+			}
+			continue
+		}
+
+		if tagValue :=tag.Get("Config");!strings.EqualFold(tagValue, "") {
+			fields[fieldStruct.Name] = &BluePrintField{
+				Name : fieldStruct.Name,
+				ValueType : ValueTypeConfig,
+				Value : tagValue,
+			}
+			continue
+		}
+
+		if tagValue :=tag.Get("Autowired");!strings.EqualFold(tagValue, "") {
+			fields[fieldStruct.Name] = &BluePrintField{
+				Name : fieldStruct.Name,
+				ValueType : ValueTypeAutoWired,
+				Value : nil,
+			}
+			continue
+		}
+	}
 }
 
 func(ctx *Ctx)initField(fieldValue reflect.Value) {
@@ -132,14 +143,110 @@ func(ctx *Ctx)initField(fieldValue reflect.Value) {
 }
 
 func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *BluePrintField) {
-	switch bpField.ValueType {
-	case ValueTypeConst:
-	case ValueTypeConfig:
-	case ValueTypeRef:
-	case ValueTypeAutoWired:
+	switch fieldValue.Kind() {
+
+	//1. 字面值情况,类型可能为所有普通类型
+	//2. 不支持配置类型
+	//3. 引用类型, 类型为字符串
+	//4. 不支持autowired
+	case reflect.Slice:
+		for _, e := range bpField.Value.([]interface{}) {
+			if bpField.ValueType == ValueTypeRef {
+				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(ctx.buildInstanceWithId(e.(string), false))))
+			} else {
+				fieldValue.Set(reflect.ValueOf(e))
+			}
+		}
+		break
+		//1. 字面值情况,类型可能为所有普通类型
+		//2. 不支持配置类型
+		//3. 引用类型, 类型为字符串
+		//4. 不支持autowired
+	case reflect.Map:
+		for k, v := range bpField.Value.(map[string]interface{}) {
+			if bpField.ValueType == ValueTypeRef {
+				fieldValue.SetMapIndex(reflect.ValueOf(k),
+					reflect.ValueOf(ctx.buildInstanceWithId(v.(string), false)))
+			} else {
+				fieldValue.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+			}
+		}
+		break
+		//1. 字面值不支持
+		//2. 配置不支持
+		//3. 引用类型, 类型为字符串
+		//4. autowired
+	case reflect.Struct:
+		if bpField.ValueType == ValueTypeRef {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)).Elem())
+		} else if bpField.ValueType == ValueTypeAutoWired {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)).Elem())
+		}
+		break
+	case reflect.Ptr:
+	case reflect.Interface:
+		if bpField.ValueType == ValueTypeRef {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
+		} else if bpField.ValueType == ValueTypeAutoWired {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)))
+		}
+		break
+	default:
+		if bpField.ValueType == ValueTypeConst {
+			fieldValue.Set(reflect.ValueOf(bpField.Value).Convert(fieldValue.Type()))
+		} else if bpField.ValueType == ValueTypeConfig {
+			//todo decide to implement the feature or not
+			// on one hand it's convenient to inject config value to component, on the other hand it will make the di
+			//system couple a configuration manager which is bad
+		}
 	}
+
+
 }
 
+func(ctx *Ctx)buildInstanceWithId(id string, save bool) (interface{}) {
+	var(
+		ins interface{}
+		exist bool
+		bp *Blueprint
+	)
+	if ins, exist = ctx.idInstance[id]; exist {
+		return ins
+	}
+	if bp, exist= ctx.idBlueprint[id]; !exist {
+		return nil
+	}
+	ins = ctx.buildInstance(bp)
+	if save {
+		ctx.idInstance[id] = ins
+		ctx.typeInstance[bp.Type] = ins
+	}
+	return ins
+}
+
+func(ctx *Ctx)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
+	var(
+		ins interface{}
+		exist bool
+		bp *Blueprint
+	)
+	if ins, exist = ctx.typeInstance[t]; exist {
+		return ins
+	}
+	if bp, exist= ctx.typeBlueprint[t]; !exist {
+		bp = &Blueprint{
+			Type : t,
+			TypeStr : "",
+			Fields:make(map[string]*BluePrintField),
+		}
+	}
+	ins = ctx.buildInstance(bp)
+
+	if save {
+		ctx.typeInstance[bp.Type] = ins
+	}
+	return ins
+}
 func(ctx *Ctx)buildInstance(bp *Blueprint) (interface{}) {
 	t := bp.Type
 	ctx.mergeBlueprintField(t, bp.Fields)
