@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sync"
 	"strings"
+	"fmt"
 )
 
 const (
@@ -12,14 +13,22 @@ const (
 	ValueTypeRef
 	ValueTypeAutoWired
 )
+
+type TypeMeta struct {
+	Alias string
+	Abstract reflect.Type
+	Implement reflect.Type
+}
+
 type BluePrintField struct {
 	Name string //field name
 	ValueType int //value type
 	Value interface{}
 }
+
 type Blueprint struct {
 	Type reflect.Type
-	TypeStr string
+	TypeAlias string
 	Fields map[string]*BluePrintField
 }
 
@@ -28,7 +37,7 @@ type Ctx struct {
 	idInstance map[string]interface{} //id to instance map
 	idBlueprint map[string]*Blueprint //id to type definition map
 	typeBlueprint map[reflect.Type]*Blueprint //type to type definition map
-	types map[string]reflect.Type //typeid to reflect type map
+	typesMeta []*TypeMeta
 	mutex *sync.Mutex
 }
 
@@ -38,7 +47,7 @@ func NewCtx() *Ctx {
 		idInstance:make(map[string]interface{}),
 		idBlueprint:make(map[string]*Blueprint),
 		typeBlueprint:make(map[reflect.Type]*Blueprint),
-		types:make(map[string]reflect.Type),
+		typesMeta : make([]*TypeMeta, 0 ,50),
 		mutex:new(sync.Mutex),
 	}
 }
@@ -188,6 +197,7 @@ func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *BluePrintField) {
 		if bpField.ValueType == ValueTypeRef {
 			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
 		} else if bpField.ValueType == ValueTypeAutoWired {
+			fmt.Println(fieldValue.Type())
 			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)))
 		}
 		break
@@ -234,9 +244,13 @@ func(ctx *Ctx)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 		return ins
 	}
 	if bp, exist= ctx.typeBlueprint[t]; !exist {
+		typeMeta := ctx.searchTypeByType(t)
+		if typeMeta == nil {
+			return nil
+		}
 		bp = &Blueprint{
-			Type : t,
-			TypeStr : "",
+			Type : typeMeta.Implement,
+			TypeAlias : typeMeta.Alias,
 			Fields:make(map[string]*BluePrintField),
 		}
 	}
@@ -255,23 +269,22 @@ func(ctx *Ctx)buildInstance(bp *Blueprint) (interface{}) {
 		ins.MethodByName("Init").Call(make([]reflect.Value, 0))
 	}
 	for index := 0; index < t.NumField(); index++ {
-		ctx.initField(ins.Field(index).Elem())
 		if bpField, ok := bp.Fields[t.Field(index).Name]; ok {
-			ctx.injectField(ins.Field(index).Elem(), bpField)
+			fieldValue := ins.Elem().FieldByName(t.Field(index).Name)
+			ctx.injectField(fieldValue, bpField)
 		}
 	}
-	return ins
+	return ins.Interface()
 }
 
 func(ctx *Ctx)RegBlueprint(id string, bp *Blueprint) {
-	tStr := bp.TypeStr
-	t, typeExist := ctx.types[tStr];
-	if !typeExist {
-		panic("type " + tStr + "not exist")
+	typeAlias := ctx.searchTypeByAlias(bp.TypeAlias)
+	if typeAlias == nil {
+		panic("type " + bp.TypeAlias + "not exist")
 	}
-	bp.Type = t
-	if _, exist := ctx.typeBlueprint[t]; !exist {
-		ctx.typeBlueprint[t] = bp
+	bp.Type = typeAlias.Implement
+	if _, exist := ctx.typeBlueprint[typeAlias.Abstract]; !exist {
+		ctx.typeBlueprint[typeAlias.Abstract] = bp
 	}
 
 	if _, exist := ctx.idBlueprint[id]; !exist {
@@ -280,11 +293,28 @@ func(ctx *Ctx)RegBlueprint(id string, bp *Blueprint) {
 
 }
 
-func(ctx *Ctx)RegType(t interface{}) {
-	tType := reflect.TypeOf(t)
-	if tType.Kind() != reflect.Struct {
-		panic("Only struct can be registerd")
+func(ctx *Ctx)RegType(meta *TypeMeta) {
+	ctx.typesMeta = append(ctx.typesMeta, meta)
+}
+
+func(ctx *Ctx)RegTypes(metas []*TypeMeta) {
+	ctx.typesMeta = append(ctx.typesMeta, metas...)
+}
+
+func(ctx *Ctx)searchTypeByAlias(alias string)(*TypeMeta) {
+	for _, meta := range ctx.typesMeta {
+		if strings.EqualFold(meta.Alias, alias) {
+			return meta
+		}
 	}
-	fullName := tType.PkgPath() + "/" + tType.Name()
-	ctx.types[fullName] = tType
+	return nil
+}
+
+func(ctx *Ctx)searchTypeByType(t reflect.Type)(*TypeMeta) {
+	for _, meta := range ctx.typesMeta {
+		if meta.Abstract == t {
+			return meta
+		}
+	}
+	return nil
 }

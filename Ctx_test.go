@@ -1,10 +1,14 @@
 package dogo
 
-import "testing"
+import (
+	"testing"
+	"reflect"
+	"fmt"
+)
 
 type typeRegisStruct struct {
 	Ip string `Value:"127.0.0.1"`
-	Auth Authrization `Ref:"dogo/authrization"`
+	Auth Authrization `Autowired:"true"`
 	Pro Protocal `Autowired:"true"`
 }
 
@@ -18,7 +22,6 @@ type Protocal interface {
 }
 
 type HttpProtocal struct {
-
 }
 
 func(hp *HttpProtocal)Post() {
@@ -35,5 +38,12 @@ func TestNewCtx(t *testing.T) {
 
 func TestCtx_GetInstanceWithId(t *testing.T) {
 	ctx := NewCtx()
-	//ctx.RegType()
+	var p Protocal
+	fmt.Println(reflect.TypeOf(&p).Elem())
+	ctx.RegType(&TypeMeta{"dogo/Protocal", reflect.TypeOf(&p).Elem(), reflect.TypeOf(&HttpProtocal{})})
+	ctx.RegType(&TypeMeta{"",reflect.TypeOf(typeRegisStruct{}), reflect.TypeOf(typeRegisStruct{})})
+	ctx.RegType(&TypeMeta{"dogo/authrization",reflect.TypeOf(Authrization{}), reflect.TypeOf(Authrization{})})
+
+	tmp := ctx.GetInstanceWithType(reflect.TypeOf(typeRegisStruct{}))
+	fmt.Println(tmp)
 }
