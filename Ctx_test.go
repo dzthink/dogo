@@ -39,7 +39,6 @@ func TestNewCtx(t *testing.T) {
 func TestCtx_GetInstanceWithId(t *testing.T) {
 	ctx := NewCtx()
 	var p Protocal
-	fmt.Println(reflect.TypeOf(&p).Elem())
 	ctx.RegType(&TypeMeta{"dogo/Protocal", reflect.TypeOf(&p).Elem(), reflect.TypeOf(&HttpProtocal{})})
 	ctx.RegType(&TypeMeta{"",reflect.TypeOf(typeRegisStruct{}), reflect.TypeOf(typeRegisStruct{})})
 	ctx.RegType(&TypeMeta{"dogo/authrization",reflect.TypeOf(Authrization{}), reflect.TypeOf(Authrization{})})

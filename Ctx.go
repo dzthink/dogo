@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"sync"
 	"strings"
-	"fmt"
 )
 
 const (
@@ -60,7 +59,7 @@ func(ctx *Ctx)GetInstanceWithId(id string) (interface{}) {
 	if ins, exist = ctx.idInstance[id];!exist {
 		defer ctx.mutex.Unlock()
 		ctx.mutex.Lock()
-		ctx.buildInstanceWithId(id, true)
+		ins = ctx.buildInstanceWithId(id, true)
 	}
 	return ins
 }
@@ -73,7 +72,7 @@ func(ctx *Ctx)GetInstanceWithType(t reflect.Type)(interface{}) {
 	if ins, exist = ctx.typeInstance[t];!exist {
 		defer ctx.mutex.Unlock()
 		ctx.mutex.Lock()
-		ctx.buildInstanceWithType(t, true)
+		ins = ctx.buildInstanceWithType(t, true)
 	}
 	return ins
 }
@@ -93,6 +92,9 @@ func(ctx *Ctx)NewInstanceWithType(t reflect.Type)(interface{}) {
 }
 
 func(ctx *Ctx)mergeBlueprintField(t reflect.Type, fields map[string]*BluePrintField) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	for index := 0; index < t.NumField(); index++ {
 		fieldStruct := t.Field(index)
 		if _, ok := fields[fieldStruct.Name];ok {
@@ -197,7 +199,6 @@ func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *BluePrintField) {
 		if bpField.ValueType == ValueTypeRef {
 			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
 		} else if bpField.ValueType == ValueTypeAutoWired {
-			fmt.Println(fieldValue.Type())
 			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)))
 		}
 		break
@@ -263,6 +264,9 @@ func(ctx *Ctx)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 }
 func(ctx *Ctx)buildInstance(bp *Blueprint) (interface{}) {
 	t := bp.Type
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	ctx.mergeBlueprintField(t, bp.Fields)
 	ins := reflect.New(t)
 	if initType, exist := t.MethodByName("Init");exist && initType.Type.NumIn() == 0 {
