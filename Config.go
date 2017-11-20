@@ -127,13 +127,13 @@ func(c *Config)Float(key string) (float64, error) {
 	return 0.0, fmt.Errorf("config item %s not exist", key)
 }
 
-func(c *Config)Get(key string, v interface{}) (interface{}, error) {
+func(c *Config)Get(key string, v interface{}) (error) {
 	if raw, ok := c.conf[key]; ok {
 		if err := json.Unmarshal(*raw, v); err != nil {
-			return 0.0, err
+			return err
 		}
-		return v, nil
+		return nil
 	}
-	return nil, fmt.Errorf("config item %s not exist", key)
+	return fmt.Errorf("config item %s not exist", key)
 }
 
