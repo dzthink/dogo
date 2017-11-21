@@ -143,13 +143,16 @@ func(ctx *Ctx)initField(fieldValue reflect.Value) {
 	//Init map/slice
 	switch fieldValue.Kind() {
 	case reflect.Map:
+
 		if !fieldValue.IsValid() || fieldValue.IsNil() {
 			fieldValue.Set(reflect.MakeMap(fieldValue.Type()))
 		}
+		break;
 	case reflect.Slice:
 		if !fieldValue.IsValid() || fieldValue.IsNil() {
 			fieldValue.Set(reflect.MakeSlice(fieldValue.Type(), 0, 0))
 		}
+		break;
 	}
 }
 
@@ -165,7 +168,7 @@ func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *BluePrintField) {
 			if bpField.ValueType == ValueTypeRef {
 				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(ctx.buildInstanceWithId(e.(string), false))))
 			} else {
-				fieldValue.Set(reflect.ValueOf(e))
+				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(e)))
 			}
 		}
 		break
@@ -275,6 +278,7 @@ func(ctx *Ctx)buildInstance(bp *Blueprint) (interface{}) {
 	for index := 0; index < t.NumField(); index++ {
 		if bpField, ok := bp.Fields[t.Field(index).Name]; ok {
 			fieldValue := ins.Elem().FieldByName(t.Field(index).Name)
+			ctx.initField(fieldValue)
 			ctx.injectField(fieldValue, bpField)
 		}
 	}
