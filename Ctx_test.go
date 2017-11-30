@@ -12,6 +12,9 @@ type typeRegisStruct struct {
 	Pro Protocal `Autowired:"true"`
 }
 
+func(tr typeRegisStruct)Init() {
+	fmt.Println("typeRegisStruct init")
+}
 type Authrization struct {
 	Username string `Value:"dzthink"`
 	Password string `Value:"123456"`

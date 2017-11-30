@@ -198,6 +198,12 @@ func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *BluePrintField) {
 		}
 		break
 	case reflect.Ptr:
+		if bpField.ValueType == ValueTypeRef {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
+		} else if bpField.ValueType == ValueTypeAutoWired {
+			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type().Elem(), false)))
+		}
+		break
 	case reflect.Interface:
 		if bpField.ValueType == ValueTypeRef {
 			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
@@ -272,7 +278,7 @@ func(ctx *Ctx)buildInstance(bp *Blueprint) (interface{}) {
 	}
 	ctx.mergeBlueprintField(t, bp.Fields)
 	ins := reflect.New(t)
-	if initType, exist := t.MethodByName("Init");exist && initType.Type.NumIn() == 0 {
+	if initType, exist := t.MethodByName("Init");exist && initType.Type.NumIn() == 1 {
 		ins.MethodByName("Init").Call(make([]reflect.Value, 0))
 	}
 	for index := 0; index < t.NumField(); index++ {
