@@ -5,6 +5,7 @@ import (
 	"syscall"
 	"os"
 	"sync"
+	"context"
 )
 
 var(
@@ -12,6 +13,7 @@ var(
 	ioc *Ioc
 	sigs chan os.Signal
 	wg sync.WaitGroup
+	canFun context.CancelFunc
 )
 
 const(
@@ -44,7 +46,6 @@ func New(ts []*TypeMeta, confPath string) {
 	if err != nil {
 		panic("Can not create config:" + err.Error())
 	}
-	//todo 准备环境：进程用户/组,pid记录
 	logProcessInfo(config)
 	//信号处理
 	wg.Add(1)
@@ -64,7 +65,9 @@ func New(ts []*TypeMeta, confPath string) {
 	ioc.parseBluePrint(ctxConfig)
 
 	go func() {
-		ioc.active()
+		var ctx context.Context
+		ctx, canFun = context.WithCancel(context.Background())
+		ioc.active(ctx)
 		wg.Done()
 	}()
 	wg.Wait()

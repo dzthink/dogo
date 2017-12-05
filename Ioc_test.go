@@ -4,6 +4,7 @@ import (
 	"testing"
 	"reflect"
 	"fmt"
+	"context"
 )
 
 type typeRegisStruct struct {
@@ -21,7 +22,8 @@ type Authrization struct {
 	Tokens []string
 }
 
-func(a Authrization)Init() {
+func(a Authrization)Init(ctx context.Context) {
+	fmt.Println(ctx)
 	fmt.Println("hello")
 }
 
@@ -63,5 +65,5 @@ func TestCtx_GetInstanceWithId(t *testing.T) {
 	ctx.parseBluePrint(ctxConf)
 	tmp := ctx.GetInstanceWithType(reflect.TypeOf(typeRegisStruct{}))
 	fmt.Println(tmp)
-	ctx.active()
+	ctx.active(context.Background())
 }

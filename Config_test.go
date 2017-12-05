@@ -2,7 +2,6 @@ package dogo
 
 import (
 	"testing"
-	"fmt"
 	"math"
 )
 
@@ -38,7 +37,6 @@ func TestNewConfig(t *testing.T) {
 		t.Fail()
 	}
 	if math.Abs(vnd - 14.55) > 0.01 {
-		fmt.Println(vnd)
 		t.Log("float err")
 		t.Fail()
 	}

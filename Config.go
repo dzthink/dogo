@@ -156,7 +156,10 @@ func(c *Config)fetchKey(key string) (*json.RawMessage, error) {
 }
 
 func(c *Config)ToString() string {
-	//todo config to string
-	return ""
+	dat, err := json.Marshal(c.conf)
+	if err != nil {
+		return ""
+	}
+	return string(dat)
 }
 

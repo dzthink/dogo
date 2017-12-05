@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sync"
 	"strings"
+	"context"
 )
 
 const (
@@ -54,47 +55,47 @@ func newIoc(ts []*TypeMeta) *Ioc {
 	return ctx
 }
 
-func(ctx *Ioc)GetInstanceWithId(id string) (interface{}) {
+func(ioc *Ioc)GetInstanceWithId(id string) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
 	)
-	if ins, exist = ctx.idInstance[id];!exist {
-		defer ctx.mutex.Unlock()
-		ctx.mutex.Lock()
-		ins = ctx.buildInstanceWithId(id, true)
+	if ins, exist = ioc.idInstance[id];!exist {
+		defer ioc.mutex.Unlock()
+		ioc.mutex.Lock()
+		ins = ioc.buildInstanceWithId(id, true)
 	}
 	return ins
 }
 
-func(ctx *Ioc)GetInstanceWithType(t reflect.Type)(interface{}) {
+func(ioc *Ioc)GetInstanceWithType(t reflect.Type)(interface{}) {
 	var(
 		ins interface{}
 		exist bool
 	)
-	if ins, exist = ctx.typeInstance[t];!exist {
-		defer ctx.mutex.Unlock()
-		ctx.mutex.Lock()
-		ins = ctx.buildInstanceWithType(t, true)
+	if ins, exist = ioc.typeInstance[t];!exist {
+		defer ioc.mutex.Unlock()
+		ioc.mutex.Lock()
+		ins = ioc.buildInstanceWithType(t, true)
 	}
 	return ins
 }
 
-func(ctx *Ioc)NewInstanceWithId(id string)(interface{}) {
-	defer ctx.mutex.Unlock()
-	ctx.mutex.Lock()
-	return ctx.buildInstanceWithId(id, false)
+func(ioc *Ioc)NewInstanceWithId(id string)(interface{}) {
+	defer ioc.mutex.Unlock()
+	ioc.mutex.Lock()
+	return ioc.buildInstanceWithId(id, false)
 }
 
-func(ctx *Ioc)NewInstanceWithType(t reflect.Type)(interface{}) {
+func(ioc *Ioc)NewInstanceWithType(t reflect.Type)(interface{}) {
 
-	defer ctx.mutex.Unlock()
-	ctx.mutex.Lock()
+	defer ioc.mutex.Unlock()
+	ioc.mutex.Lock()
 
-	return ctx.buildInstanceWithType(t, false)
+	return ioc.buildInstanceWithType(t, false)
 }
 
-func(ctx *Ioc)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintField) {
+func(ioc *Ioc)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintField) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -142,7 +143,7 @@ func(ctx *Ioc)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintFi
 	}
 }
 
-func(ctx *Ioc)initField(fieldValue reflect.Value) {
+func(ioc *Ioc)initField(fieldValue reflect.Value) {
 	//Init map/slice
 	switch fieldValue.Kind() {
 	case reflect.Map:
@@ -159,7 +160,7 @@ func(ctx *Ioc)initField(fieldValue reflect.Value) {
 	}
 }
 
-func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
+func(ioc *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 	switch fieldValue.Kind() {
 
 	//1. 字面值情况,类型可能为所有普通类型
@@ -169,7 +170,7 @@ func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 	case reflect.Slice:
 		for _, e := range bpField.Value.([]interface{}) {
 			if bpField.ValueType == ValueTypeRef {
-				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(ctx.buildInstanceWithId(e.(string), false))))
+				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(ioc.buildInstanceWithId(e.(string), false))))
 			} else {
 				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(e)))
 			}
@@ -183,7 +184,7 @@ func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 		for k, v := range bpField.Value.(map[string]interface{}) {
 			if bpField.ValueType == ValueTypeRef {
 				fieldValue.SetMapIndex(reflect.ValueOf(k),
-					reflect.ValueOf(ctx.buildInstanceWithId(v.(string), false)))
+					reflect.ValueOf(ioc.buildInstanceWithId(v.(string), false)))
 			} else {
 				fieldValue.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
 			}
@@ -195,23 +196,23 @@ func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 		//4. autowired
 	case reflect.Struct:
 		if bpField.ValueType == ValueTypeRef {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)).Elem())
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithId(bpField.Value.(string), false)).Elem())
 		} else if bpField.ValueType == ValueTypeAutoWired {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)).Elem())
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithType(fieldValue.Type(), false)).Elem())
 		}
 		break
 	case reflect.Ptr:
 		if bpField.ValueType == ValueTypeRef {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithId(bpField.Value.(string), false)))
 		} else if bpField.ValueType == ValueTypeAutoWired {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type().Elem(), false)))
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithType(fieldValue.Type().Elem(), false)))
 		}
 		break
 	case reflect.Interface:
 		if bpField.ValueType == ValueTypeRef {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithId(bpField.Value.(string), false)))
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithId(bpField.Value.(string), false)))
 		} else if bpField.ValueType == ValueTypeAutoWired {
-			fieldValue.Set(reflect.ValueOf(ctx.buildInstanceWithType(fieldValue.Type(), false)))
+			fieldValue.Set(reflect.ValueOf(ioc.buildInstanceWithType(fieldValue.Type(), false)))
 		}
 		break
 	default:
@@ -227,37 +228,37 @@ func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 
 }
 
-func(ctx *Ioc)buildInstanceWithId(id string, save bool) (interface{}) {
+func(ioc *Ioc)buildInstanceWithId(id string, save bool) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
 		bp *blueprint
 	)
-	if ins, exist = ctx.idInstance[id]; exist {
+	if ins, exist = ioc.idInstance[id]; exist {
 		return ins
 	}
-	if bp, exist= ctx.idBlueprint[id]; !exist {
+	if bp, exist= ioc.idBlueprint[id]; !exist {
 		return nil
 	}
-	ins = ctx.buildInstance(bp)
+	ins = ioc.buildInstance(bp)
 	if save {
-		ctx.idInstance[id] = ins
-		ctx.typeInstance[bp.Type] = ins
+		ioc.idInstance[id] = ins
+		ioc.typeInstance[bp.Type] = ins
 	}
 	return ins
 }
 
-func(ctx *Ioc)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
+func(ioc *Ioc)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
 		bp *blueprint
 	)
-	if ins, exist = ctx.typeInstance[t]; exist {
+	if ins, exist = ioc.typeInstance[t]; exist {
 		return ins
 	}
-	if bp, exist= ctx.typeBlueprint[t]; !exist {
-		typeMeta := ctx.searchTypeByType(t)
+	if bp, exist= ioc.typeBlueprint[t]; !exist {
+		typeMeta := ioc.searchTypeByType(t)
 		if typeMeta == nil {
 			return nil
 		}
@@ -267,46 +268,46 @@ func(ctx *Ioc)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 			Fields:make(map[string]*bluePrintField),
 		}
 	}
-	ins = ctx.buildInstance(bp)
+	ins = ioc.buildInstance(bp)
 
 	if save {
-		ctx.typeInstance[bp.Type] = ins
+		ioc.typeInstance[bp.Type] = ins
 	}
 	return ins
 }
-func(ctx *Ioc)buildInstance(bp *blueprint) (interface{}) {
+func(ioc *Ioc)buildInstance(bp *blueprint) (interface{}) {
 	t := bp.Type
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	ctx.mergeBlueprintField(t, bp.Fields)
+	ioc.mergeBlueprintField(t, bp.Fields)
 	ins := reflect.New(t)
 	//todo preinit callback
 	for index := 0; index < t.NumField(); index++ {
 		if bpField, ok := bp.Fields[t.Field(index).Name]; ok {
 			fieldValue := ins.Elem().FieldByName(t.Field(index).Name)
-			ctx.initField(fieldValue)
-			ctx.injectField(fieldValue, bpField)
+			ioc.initField(fieldValue)
+			ioc.injectField(fieldValue, bpField)
 		}
 	}
 	return ins.Interface()
 }
 
-func(ctx *Ioc)parseBluePrint(confs []*Config) {
+func(ioc *Ioc)parseBluePrint(confs []*Config) {
 	for _, bpConf := range confs {
 		bpConfId ,err := bpConf.String(CONF_CTX_ID)
 		if err != nil {
 			panic("context config error, id missing, config string " + bpConf.ToString())
 		}
 		bpConfId = strings.TrimSpace(bpConfId)
-		if _,exist := ctx.idBlueprint[bpConfId]; exist {
+		if _,exist := ioc.idBlueprint[bpConfId]; exist {
 			panic("context config error, id duplicate, config string" + bpConf.ToString())
 		}
 		bpConfAlias , err := bpConf.String(CONF_CTX_ALIAS)
 		if err != nil {
 			panic("context config error, alias missing, conf string:" + bpConf.ToString())
 		}
-		tpMeta := ctx.searchTypeByAlias(bpConfAlias)
+		tpMeta := ioc.searchTypeByAlias(bpConfAlias)
 		if tpMeta == nil {
 			panic("context config error alias not exist , conf string:" + bpConf.ToString())
 		}
@@ -318,8 +319,8 @@ func(ctx *Ioc)parseBluePrint(confs []*Config) {
 			Fields:make(map[string]*bluePrintField),
 		}
 		bpFieldConfs, err := bpConf.ChildList(CONF_CTX_FIELDS)
-		ctx.typeBlueprint[tpMeta.Abstract] = bp
-		ctx.idBlueprint[bpConfId] = bp
+		ioc.typeBlueprint[tpMeta.Abstract] = bp
+		ioc.idBlueprint[bpConfId] = bp
 		if err != nil {
 			continue
 		}
@@ -354,11 +355,12 @@ func(ctx *Ioc)parseBluePrint(confs []*Config) {
 }
 
 
-func(ctx *Ioc)active() {
-	//todo initial all blueprint instance and call init/active callback
-	//todo post initial callback
-	for id, bp := range ctx.idBlueprint{
-		ins := ctx.GetInstanceWithId(id)
+func(ioc *Ioc)active(ctx context.Context) {
+	param := []reflect.Value{
+		reflect.ValueOf(ctx),
+	}
+	for id, bp := range ioc.idBlueprint{
+		ins := ioc.GetInstanceWithId(id)
 		if ins == nil {
 			panic("error to get instance of " + id)
 		}
@@ -366,18 +368,18 @@ func(ctx *Ioc)active() {
 		if strings.EqualFold(bp.InitMethod, "") {
 			continue
 		}
-		if initType, exist := insValue.Type().MethodByName(bp.InitMethod);exist && initType.Type.NumIn() == 1 {
-			insValue.MethodByName(bp.InitMethod).Call(make([]reflect.Value, 0))
+		if initType, exist := insValue.Type().MethodByName(bp.InitMethod);exist && initType.Type.NumIn() == 2 {
+			insValue.MethodByName(bp.InitMethod).Call(param)
 		}
 	}
 }
 
-func(ctx *Ioc)regTypes(metas []*TypeMeta) {
-	ctx.typesMeta = append(ctx.typesMeta, metas...)
+func(ioc *Ioc)regTypes(metas []*TypeMeta) {
+	ioc.typesMeta = append(ioc.typesMeta, metas...)
 }
 
-func(ctx *Ioc)searchTypeByAlias(alias string)(*TypeMeta) {
-	for _, meta := range ctx.typesMeta {
+func(ioc *Ioc)searchTypeByAlias(alias string)(*TypeMeta) {
+	for _, meta := range ioc.typesMeta {
 		if strings.EqualFold(meta.Alias, alias) {
 			return meta
 		}
@@ -385,8 +387,8 @@ func(ctx *Ioc)searchTypeByAlias(alias string)(*TypeMeta) {
 	return nil
 }
 
-func(ctx *Ioc)searchTypeByType(t reflect.Type)(*TypeMeta) {
-	for _, meta := range ctx.typesMeta {
+func(ioc *Ioc)searchTypeByType(t reflect.Type)(*TypeMeta) {
+	for _, meta := range ioc.typesMeta {
 		if meta.Abstract == t {
 			return meta
 		}
