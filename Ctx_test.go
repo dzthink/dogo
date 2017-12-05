@@ -38,7 +38,7 @@ func(hp *HttpProtocal)Post() {
 
 
 func TestNewCtx(t *testing.T) {
-	ctx := NewCtx([]*TypeMeta{})
+	ctx := newIoc([]*TypeMeta{})
 	if ctx == nil {
 		t.Error("fail to create ctx")
 	}
@@ -50,7 +50,7 @@ func TestCtx_GetInstanceWithId(t *testing.T) {
 		t.Log(err)
 		t.Fail()
 	}
-	ctx := NewCtx([]*TypeMeta{
+	ctx := newIoc([]*TypeMeta{
 		&TypeMeta{"dogo/Protocal", reflect.TypeOf((*Protocal)(nil)).Elem(), reflect.TypeOf(&HttpProtocal{})},
 		&TypeMeta{"",reflect.TypeOf(typeRegisStruct{}), reflect.TypeOf(typeRegisStruct{})},
 		&TypeMeta{"dogo/authrization",reflect.TypeOf(Authrization{}), reflect.TypeOf(Authrization{})},

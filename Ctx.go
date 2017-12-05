@@ -32,7 +32,7 @@ type blueprint struct {
 	Fields map[string]*bluePrintField
 }
 
-type Ctx struct {
+type Ioc struct {
 	typeInstance map[reflect.Type]interface{} //type to instance map
 	idInstance map[string]interface{} //id to instance map
 	idBlueprint map[string]*blueprint //id to type definition map
@@ -41,8 +41,8 @@ type Ctx struct {
 	mutex *sync.Mutex
 }
 
-func NewCtx(ts []*TypeMeta) *Ctx {
-	ctx := &Ctx{
+func newIoc(ts []*TypeMeta) *Ioc {
+	ctx := &Ioc{
 		typeInstance:make(map[reflect.Type]interface{}),
 		idInstance:make(map[string]interface{}),
 		idBlueprint:make(map[string]*blueprint),
@@ -54,7 +54,7 @@ func NewCtx(ts []*TypeMeta) *Ctx {
 	return ctx
 }
 
-func(ctx *Ctx)GetInstanceWithId(id string) (interface{}) {
+func(ctx *Ioc)GetInstanceWithId(id string) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
@@ -67,7 +67,7 @@ func(ctx *Ctx)GetInstanceWithId(id string) (interface{}) {
 	return ins
 }
 
-func(ctx *Ctx)GetInstanceWithType(t reflect.Type)(interface{}) {
+func(ctx *Ioc)GetInstanceWithType(t reflect.Type)(interface{}) {
 	var(
 		ins interface{}
 		exist bool
@@ -80,13 +80,13 @@ func(ctx *Ctx)GetInstanceWithType(t reflect.Type)(interface{}) {
 	return ins
 }
 
-func(ctx *Ctx)NewInstanceWithId(id string)(interface{}) {
+func(ctx *Ioc)NewInstanceWithId(id string)(interface{}) {
 	defer ctx.mutex.Unlock()
 	ctx.mutex.Lock()
 	return ctx.buildInstanceWithId(id, false)
 }
 
-func(ctx *Ctx)NewInstanceWithType(t reflect.Type)(interface{}) {
+func(ctx *Ioc)NewInstanceWithType(t reflect.Type)(interface{}) {
 
 	defer ctx.mutex.Unlock()
 	ctx.mutex.Lock()
@@ -94,7 +94,7 @@ func(ctx *Ctx)NewInstanceWithType(t reflect.Type)(interface{}) {
 	return ctx.buildInstanceWithType(t, false)
 }
 
-func(ctx *Ctx)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintField) {
+func(ctx *Ioc)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintField) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -142,7 +142,7 @@ func(ctx *Ctx)mergeBlueprintField(t reflect.Type, fields map[string]*bluePrintFi
 	}
 }
 
-func(ctx *Ctx)initField(fieldValue reflect.Value) {
+func(ctx *Ioc)initField(fieldValue reflect.Value) {
 	//Init map/slice
 	switch fieldValue.Kind() {
 	case reflect.Map:
@@ -159,7 +159,7 @@ func(ctx *Ctx)initField(fieldValue reflect.Value) {
 	}
 }
 
-func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
+func(ctx *Ioc)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 	switch fieldValue.Kind() {
 
 	//1. 字面值情况,类型可能为所有普通类型
@@ -227,7 +227,7 @@ func(ctx *Ctx)injectField(fieldValue reflect.Value, bpField *bluePrintField) {
 
 }
 
-func(ctx *Ctx)buildInstanceWithId(id string, save bool) (interface{}) {
+func(ctx *Ioc)buildInstanceWithId(id string, save bool) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
@@ -247,7 +247,7 @@ func(ctx *Ctx)buildInstanceWithId(id string, save bool) (interface{}) {
 	return ins
 }
 
-func(ctx *Ctx)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
+func(ctx *Ioc)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 	var(
 		ins interface{}
 		exist bool
@@ -274,7 +274,7 @@ func(ctx *Ctx)buildInstanceWithType(t reflect.Type, save bool) (interface{}) {
 	}
 	return ins
 }
-func(ctx *Ctx)buildInstance(bp *blueprint) (interface{}) {
+func(ctx *Ioc)buildInstance(bp *blueprint) (interface{}) {
 	t := bp.Type
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -292,7 +292,7 @@ func(ctx *Ctx)buildInstance(bp *blueprint) (interface{}) {
 	return ins.Interface()
 }
 
-func(ctx *Ctx)parseBluePrint(confs []*Config) {
+func(ctx *Ioc)parseBluePrint(confs []*Config) {
 	for _, bpConf := range confs {
 		bpConfId ,err := bpConf.String(CONF_CTX_ID)
 		if err != nil {
@@ -354,7 +354,7 @@ func(ctx *Ctx)parseBluePrint(confs []*Config) {
 }
 
 
-func(ctx *Ctx)active() {
+func(ctx *Ioc)active() {
 	//todo initial all blueprint instance and call init/active callback
 	//todo post initial callback
 	for id, bp := range ctx.idBlueprint{
@@ -372,11 +372,11 @@ func(ctx *Ctx)active() {
 	}
 }
 
-func(ctx *Ctx)regTypes(metas []*TypeMeta) {
+func(ctx *Ioc)regTypes(metas []*TypeMeta) {
 	ctx.typesMeta = append(ctx.typesMeta, metas...)
 }
 
-func(ctx *Ctx)searchTypeByAlias(alias string)(*TypeMeta) {
+func(ctx *Ioc)searchTypeByAlias(alias string)(*TypeMeta) {
 	for _, meta := range ctx.typesMeta {
 		if strings.EqualFold(meta.Alias, alias) {
 			return meta
@@ -385,7 +385,7 @@ func(ctx *Ctx)searchTypeByAlias(alias string)(*TypeMeta) {
 	return nil
 }
 
-func(ctx *Ctx)searchTypeByType(t reflect.Type)(*TypeMeta) {
+func(ctx *Ioc)searchTypeByType(t reflect.Type)(*TypeMeta) {
 	for _, meta := range ctx.typesMeta {
 		if meta.Abstract == t {
 			return meta

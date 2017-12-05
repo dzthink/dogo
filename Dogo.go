@@ -9,7 +9,7 @@ import (
 
 var(
 	config *Config
-	context *Ctx
+	ioc *Ioc
 	sigs chan os.Signal
 	wg sync.WaitGroup
 )
@@ -30,7 +30,7 @@ func GetConfig() *Config {
 	return config
 }
 
-func NewContext(ts []*TypeMeta, confPath string) {
+func New(ts []*TypeMeta, confPath string) {
 	//process panic, trigger signal SIGUSER2
 	defer func() {
 		if err := recover(); err != nil {
@@ -56,15 +56,15 @@ func NewContext(ts []*TypeMeta, confPath string) {
 	//context初始化及处理
 	wg.Add(1)
 	ts = ensureLogImplementExist(ts)
-	context = NewCtx(ts)
+	ioc = newIoc(ts)
 	ctxConfig, err := config.ChildList(CONF_CTX)
 	if err != nil {
 		panic("Context config error:" + err.Error())
 	}
-	context.parseBluePrint(ctxConfig)
+	ioc.parseBluePrint(ctxConfig)
 
 	go func() {
-		context.active()
+		ioc.active()
 		wg.Done()
 	}()
 	wg.Wait()
@@ -80,11 +80,7 @@ func ensureLogImplementExist(ts []*TypeMeta) []*TypeMeta{
 	return append(ts, &TypeMeta{"", logIf, reflect.TypeOf(&DogoLog{})})
 }
 
-func GetContext() *Ctx {
-	return context
-}
-
-func activeContext() {
-
+func GetIoc() *Ioc {
+	return ioc
 }
 
