@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"fmt"
+	"strings"
+	"errors"
 )
 
 type Config struct {
@@ -52,9 +54,9 @@ func(c *Config)imports() {
 }
 
 func(c *Config)Child(key string) (*Config, error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var conf map[string]*json.RawMessage
-		err := json.Unmarshal(*raw, conf)
+		err := json.Unmarshal(*raw, &conf)
 		if err != nil {
 			return nil, err
 		}
@@ -66,9 +68,9 @@ func(c *Config)Child(key string) (*Config, error) {
 }
 
 func(c *Config)ChildList(key string)([]*Config, error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var confs []map[string]*json.RawMessage
-		err := json.Unmarshal(*raw, confs)
+		err := json.Unmarshal(*raw, &confs)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +86,7 @@ func(c *Config)ChildList(key string)([]*Config, error) {
 }
 
 func(c *Config)Bool(key string)(bool, error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var b bool
 		if err := json.Unmarshal(*raw, &b); err != nil {
 			return false, err
@@ -95,7 +97,7 @@ func(c *Config)Bool(key string)(bool, error) {
 }
 
 func(c *Config)Int(key string) (int64 ,error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var b int64
 		if err := json.Unmarshal(*raw, &b); err != nil {
 			return 0, err
@@ -106,7 +108,7 @@ func(c *Config)Int(key string) (int64 ,error) {
 }
 
 func(c *Config)String(key string) (string, error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var b string
 		if err := json.Unmarshal(*raw, &b); err != nil {
 			return "", err
@@ -117,7 +119,7 @@ func(c *Config)String(key string) (string, error) {
 }
 
 func(c *Config)Float(key string) (float64, error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		var b float64
 		if err := json.Unmarshal(*raw, &b); err != nil {
 			return 0.0, err
@@ -128,12 +130,33 @@ func(c *Config)Float(key string) (float64, error) {
 }
 
 func(c *Config)Get(key string, v interface{}) (error) {
-	if raw, ok := c.conf[key]; ok {
+	if raw, err := c.fetchKey(key); err == nil {
 		if err := json.Unmarshal(*raw, v); err != nil {
 			return err
 		}
 		return nil
 	}
 	return fmt.Errorf("config item %s not exist", key)
+}
+
+func(c *Config)fetchKey(key string) (*json.RawMessage, error) {
+	if raw, ok := c.conf[key]; ok {
+		return raw, nil
+	}
+	fmt.Println(key)
+	keys := strings.Split(key, ".")
+	if len(keys) <= 1 {
+		return nil, errors.New("config " + key + "not found")
+	}
+	if cConf, err := c.Child(keys[0]); err != nil {
+		return nil , err
+	} else {
+		return cConf.fetchKey(strings.Join(keys[1:], "."))
+	}
+}
+
+func(c *Config)ToString() string {
+	//todo config to string
+	return ""
 }
 

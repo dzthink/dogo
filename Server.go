@@ -13,7 +13,6 @@ const(
 )
 type Server struct {
 	ser *http.Server
-	dogo *Dogo
 }
 
 type ServerConfig struct {
@@ -26,14 +25,13 @@ type ServerConfig struct {
 
 
 
-func NewServer(dogo *Dogo) (*Server, error) {
+func NewServer() (*Server, error) {
 	ser := &Server{
 		ser : &http.Server{
 			Addr : DEFAULT_ADDR,
 			ReadTimeout : DEFAULT_READ_TIMEOUT,
 			WriteTimeout : DEFAULT__WRITE_TIMEOUT,
 		},
-		dogo : dogo,
 	}
 	ser.init()
 	return ser, nil
@@ -42,10 +40,6 @@ func NewServer(dogo *Dogo) (*Server, error) {
 
 func(s *Server) init() {
 	var sc ServerConfig
-	err := s.dogo.Config.Get("server", &sc)
-	if err != nil {
-		s.dogo.Error("config ")
-	}
 	if !strings.EqualFold(sc.Addr, "") {
 		s.ser.Addr = sc.Addr
 	}

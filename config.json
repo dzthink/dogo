@@ -4,7 +4,7 @@
   "supportHttp2":false,
   "vnd":14.55,
   "@imports":{
-      "context":"definition.json"
+      "dogo.ctx":"definition.json"
   },
   "whitelist":[33,22,212],
   "users":[

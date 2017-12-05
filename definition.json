@@ -1,29 +1,18 @@
 [
   {
-    "id":"UserService",
-    "type":"pkgName + typeName",
+    "id":"Authrization",
+    "alias":"dogo/authrization",
+    "init-method":"Init",
     "fields":[
       {
-        "name":"field name",
-        "value":""
+        "name":"Username",
+        "type":"const",
+        "value":"zxduan"
       },
       {
-        "name":"field name 1",
-        "ref":"依赖引用id"
-      },
-      {
-        "name":"fields name 2",
-        "list":[
-          {
-            "ref/value":""
-          }
-        ]
-      },
-      {
-        "name":"fields name 3",
-        "map":{
-          "key":{"value/ref":""}
-        }
+        "name":"Tokens",
+        "type":"const",
+        "value":["a","b","c"]
       }
     ]
   }
